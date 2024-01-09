@@ -1,0 +1,51 @@
+name: Deploy to development env
+
+on:
+  push:
+    branches: [development]
+env:
+  NODE_VERSION: "14.x"
+  DEPLOY_HOST: ${{ vars.HOST_URL_DEV }}
+  DEPLOY_USER: ${{ secrets.HOST_USER }}
+  DEPLOY_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+  DEPLOY_KEY_NAME: ${{ secrets.SSH_KEY_NAME }}
+  DEPLOY_KEY_PATH: ${{ secrets.SSH_KEY_PATH }}
+  DEPLOY_PATH: ${{ vars.HOST_PATH }}
+
+jobs:
+  checking:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Use Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "yarn"
+      - name: Install & Checking
+        run: |
+          yarn
+          yarn lint
+deploy:
+    needs: checking
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Deploy to server
+        uses: up9cloud/action-rsync@master
+        env:
+          HOST: ${{ env.DEPLOY_HOST }}
+          KEY: ${{ env.DEPLOY_KEY }}
+          # PASSWORD: ${{secrets.DEPLOY_SSH_PASSWORD}} # it's less secure, using KEY instead
+          TARGET: ${{ env.DEPLOY_PATH }}
+
+          VERBOSE: true
+          USER: ${{ env.DEPLOY_USER }}
+          # PORT: 2222 # no need to set this, because of $SSH_ARGS
+          ARGS: -avzrut --exclude=/.git/ --delete-delay
+          SSH_ARGS: "-o StrictHostKeyChecking=no"
+
+          POST_SCRIPT: |
+            cd ${{ env.DEPLOY_PATH }}
+            pm2 delete backend
+            pm2 start --time yarn ~/projectdemo/ecosystem-backend.config.js --interpreter bash --name backend -- start
