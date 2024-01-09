@@ -48,4 +48,4 @@ deploy:
           POST_SCRIPT: |
             cd ${{ env.DEPLOY_PATH }}
             pm2 delete backend
-            pm2 start --time yarn ~/projectdemo/ecosystem-backend.config.js --interpreter bash --name backend -- start
+            pm2 start --time yarn ~/test-github-action/ecosystem-backend.config.js --interpreter bash --name backend -- start
